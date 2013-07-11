@@ -23,7 +23,12 @@ class DerrickRootResource(Resource):
     blacklist = ['tools']
 
     def __init__(self, root='.'):
-        self.root = os.path.abspath(root)
+        self.root = os.path.realpath(root)
+
+    def _is_safe(self, filename):
+        '''Test filenames for security/safety.'''
+        filename = os.path.realpath(filename)
+        return os.path.commonprefix([filename, self.root]) == self.root
 
     def _save(self, request):
         '''Save the Weltmeister level.

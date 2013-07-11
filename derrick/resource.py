@@ -12,6 +12,11 @@ FAVICON = 'GIF89a\x01\x00\x01\x00\xf0\x00\x00\xff\xff\xff\x00\x00\x00!' \
 
 
 class DerrickRootResource(Resource):
+    '''The root resource for serving Impact.js games via Derrick.
+
+    Since Impact.js has hardcoded url paths, there are specific urls that are
+    expected, and then it can fall through to static files.
+    '''
 
     isLeaf = True
 
@@ -30,10 +35,22 @@ class DerrickRootResource(Resource):
         pass
 
     def render_GET(self, request):
+        '''Handle GET request (Duh).
+
+        There are a few hardcoded urls here that require explanation:
+
+        / - Return the index page
+        /editor - Return the weltmeister level editor
+        /lib/weltmeister/api/glob.php - Convert globs to filepaths, and then
+            return them as a json list.
+        /lib/weltmeister/api/browse.php - Return a json object representing a
+            directory listing with .files, .dirs, and .parent properties.
+        '''
         path = request.path
 
         if path == '/':
             path = 'index.html'
+        # TODO: this should be a config
         elif path == '/editor':
             path = 'weltmeister.html'
         elif path == '/lib/weltmeister/api/glob.php':
@@ -103,6 +120,12 @@ class DerrickRootResource(Resource):
                 return None
 
     def render_POST(self, request):
+        '''Handle POST request (Duh).
+
+        There's only one URL that should be handled here, and it's the
+        Weltmeister save endpoint.  Take a post with path and data keys, and
+        write the data to the provided path.
+        '''
         if request.path == '/lib/weltmeister/api/save.php':
             path = request.args.get('path', None)
             data = request.args.get('data', None)

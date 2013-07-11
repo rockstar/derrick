@@ -58,7 +58,7 @@ class DerrickRootResource(Resource):
             dirs = [os.path.join(top_dir, d)
                     for d in os.listdir(os.path.join(self.root, top_dir))
                     if os.path.isdir(os.path.join(top_dir, d))]
-            files = glob.glob(top_dir + '*.*')
+            files = glob.glob(os.path.join(top_dir, '*.*'))
 
             if 'type' in request.args:
                 types = request.args.get('type')[0]
@@ -69,7 +69,7 @@ class DerrickRootResource(Resource):
             return json.dumps({
                 'files': files,
                 'dirs': dirs,
-                'parent': False if top_dir == './' else os.path.dirname(os.path.dirname(top_dir))
+                'parent': False if top_dir == './' else os.path.dirname(top_dir)
             })
 
         # Trim the leading forward slash

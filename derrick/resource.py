@@ -43,13 +43,14 @@ class DerrickRootResource(Resource):
             request.setResponseCode(503)
             return json.dumps({'error': 1, 'msg': 'No data or path'})
 
-        # TODO: Don't let you do '..' for security
         path = path[0]
-        data = data[0]
-
-        open(path, 'w').write(data)
-        request.setResponseCode(200)
-        return json.dumps({'error': 0})
+        if self._is_safe(path):
+            open(path, 'w').write(data[0])
+            request.setResponseCode(200)
+            return json.dumps({'error': 0})
+        else:
+            request.setResponseCode(403)
+            return ''
 
     def _browse(self, request):
         '''Return a json object containing a directory listing.
@@ -69,8 +70,11 @@ class DerrickRootResource(Resource):
         if not top_dir:
             request.setResponseCode(404)
             return ''
-        # TODO: Don't let you do '..' for security
+
         top_dir = top_dir[0]
+        if not self._is_safe(top_dir):
+            request.setResponseCode(404)
+            return ''
         dirs = [os.path.join(top_dir, d)
                 for d in os.listdir(os.path.join(self.root, top_dir))
                 if os.path.isdir(os.path.join(top_dir, d))]
@@ -101,9 +105,9 @@ class DerrickRootResource(Resource):
 
         files = []
         for _glob in globs:
-            # TODO: Don't let you do '..' for security
-            _files = glob.glob(_glob)
-            files.extend(_files)
+            if self._is_safe(_glob):
+                _files = glob.glob(_glob)
+                files.extend(_files)
         return json.dumps(files)
 
     def render_GET(self, request):
@@ -138,9 +142,10 @@ class DerrickRootResource(Resource):
                 request.setResponseCode(404)
                 return ''
 
-        # TODO: Don't let you do '..' for security
-
         path = os.path.join(self.root, path)
+        if not self._is_safe(path):
+            request.setResponseCode(404)
+            return ''
 
         try:
             with open(path, 'rb') as f:

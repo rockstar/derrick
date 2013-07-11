@@ -25,14 +25,81 @@ class DerrickRootResource(Resource):
     def __init__(self, root='.'):
         self.root = os.path.abspath(root)
 
-    def _save(self):
-        pass
+    def _save(self, request):
+        '''Save the Weltmeister level.
 
-    def _browse(self):
-        pass
+        Form data contains two fields: path and data. The path is the filepath
+        location to save the level content. The data field is the actual
+        content of the level (which is just ImpactJS javascript.
+        '''
+        path = request.args.get('path', None)
+        data = request.args.get('data', None)
+        if not path or not data:
+            request.setResponseCode(503)
+            return json.dumps({'error': 1, 'msg': 'No data or path'})
 
-    def _glob(self):
-        pass
+        # TODO: Don't let you do '..' for security
+        path = path[0]
+        data = data[0]
+
+        open(path, 'w').write(data)
+        request.setResponseCode(200)
+        return json.dumps({'error': 0})
+
+    def _browse(self, request):
+        '''Return a json object containing a directory listing.
+
+        A single GET parameter pointing to a directory is provided, and its
+        directory listing is returned in a json format.
+
+        The javascript object looks like this:
+
+        {
+            files: ['lib/game/levels/levelOne.js', 'lib/game/levels/levelTwo.js'],
+            dirs: [],
+            parent: 'lib/game'
+        }
+        '''
+        top_dir = request.args.get('dir')
+        if not top_dir:
+            request.setResponseCode(404)
+            return ''
+        # TODO: Don't let you do '..' for security
+        top_dir = top_dir[0]
+        dirs = [os.path.join(top_dir, d)
+                for d in os.listdir(os.path.join(self.root, top_dir))
+                if os.path.isdir(os.path.join(top_dir, d))]
+        files = glob.glob(os.path.join(top_dir, '*.*'))
+
+        if 'type' in request.args:
+            types = request.args.get('type')[0]
+            if 'scripts' in types:
+                files = [f for f in files if os.path.splitext(f)[1] == '.js']
+
+        request.setResponseCode(200)
+        return json.dumps({
+            'files': files,
+            'dirs': dirs,
+            'parent': False if top_dir == './' else os.path.dirname(top_dir)
+        })
+
+    def _glob(self, request):
+        '''Translate glob paths to json paths.
+
+        A single GET parameter named glob[] should contain a list of
+        directories. Return a json list of all files matching those globs.
+        '''
+        globs = request.args.get('glob[]', None)
+        if not globs:
+            request.setResponseCode(503)
+            return 'globs[] not set'
+
+        files = []
+        for _glob in globs:
+            # TODO: Don't let you do '..' for security
+            _files = glob.glob(_glob)
+            files.extend(_files)
+        return json.dumps(files)
 
     def render_GET(self, request):
         '''Handle GET request (Duh).
@@ -41,10 +108,10 @@ class DerrickRootResource(Resource):
 
         / - Return the index page
         /editor - Return the weltmeister level editor
-        /lib/weltmeister/api/glob.php - Convert globs to filepaths, and then
-            return them as a json list.
-        /lib/weltmeister/api/browse.php - Return a json object representing a
-            directory listing with .files, .dirs, and .parent properties.
+        /lib/weltmeister/api/glob.php - See `DerrickRootResource._glob`
+        /lib/weltmeister/api/browse.php - See `DerrickRootResource._browse`
+
+        Otherwise, return the file referenced, or a 404.
         '''
         path = request.path
 
@@ -54,40 +121,9 @@ class DerrickRootResource(Resource):
         elif path == '/editor':
             path = 'weltmeister.html'
         elif path == '/lib/weltmeister/api/glob.php':
-            globs = request.args.get('glob[]', None)
-            if not globs:
-                request.setResponseCode(503)
-                return 'globs[] not set'
-
-            files = []
-            for _glob in globs:
-                # TODO: Don't let you do '..' for security
-                _files = glob.glob(_glob)
-                files.extend(_files)
-            return json.dumps(files)
+            return self._glob(request)
         elif request.path == '/lib/weltmeister/api/browse.php':
-            top_dir = request.args.get('dir')
-            if not top_dir:
-                request.setResponseCode(404)
-                return ''
-            # TODO: Don't let you do '..' for security
-            top_dir = top_dir[0]
-            dirs = [os.path.join(top_dir, d)
-                    for d in os.listdir(os.path.join(self.root, top_dir))
-                    if os.path.isdir(os.path.join(top_dir, d))]
-            files = glob.glob(os.path.join(top_dir, '*.*'))
-
-            if 'type' in request.args:
-                types = request.args.get('type')[0]
-                if 'scripts' in types:
-                    files = [f for f in files if os.path.splitext(f)[1] == '.js']
-
-            request.setResponseCode(200)
-            return json.dumps({
-                'files': files,
-                'dirs': dirs,
-                'parent': False if top_dir == './' else os.path.dirname(top_dir)
-            })
+            return self._browse(request)
 
         # Trim the leading forward slash
         if path[0] == '/':
@@ -127,19 +163,7 @@ class DerrickRootResource(Resource):
         write the data to the provided path.
         '''
         if request.path == '/lib/weltmeister/api/save.php':
-            path = request.args.get('path', None)
-            data = request.args.get('data', None)
-            if not path or not data:
-                request.setResponseCode(503)
-                return json.dumps({'error': 1, 'msg': 'No data or path'})
-
-            # TODO: Don't let you do '..' for security
-            path = path[0]
-            data = data[0]
-
-            open(path, 'w').write(data)
-            request.setResponseCode(200)
-            return json.dumps({'error': 0})
+            return self.save(request)
         else:
             request.setResponseCode(405)
             return 'Method not allowed'

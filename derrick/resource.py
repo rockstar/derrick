@@ -173,7 +173,7 @@ class DerrickRootResource(Resource):
         write the data to the provided path.
         '''
         if request.path == '/lib/weltmeister/api/save.php':
-            return self.save(request)
+            return self._save(request)
         else:
             request.setResponseCode(405)
             return 'Method not allowed'

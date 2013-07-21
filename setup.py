@@ -50,7 +50,7 @@ setup(
     name='derrick',
     packages=['derrick', 'twisted.plugins'],
     url='https://github.com/rockstar/derrick',
-    version='0.1',
+    version='0.1.1',
 )
 #### End not-stolen code
 
